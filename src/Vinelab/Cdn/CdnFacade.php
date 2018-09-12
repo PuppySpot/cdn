@@ -116,6 +116,8 @@ class CdnFacade implements CdnFacadeInterface
      *
      * @param $path
      *
+     * @param $buildDir
+     *
      * @return mixed
      *
      * @throws Exceptions\EmptyPathException, \InvalidArgumentException
