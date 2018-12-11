@@ -80,26 +80,60 @@ class CdnFacade implements CdnFacadeInterface
         // if asset always append the public/ dir to the path (since the user should not add public/ to asset)
         return $this->generateUrl($path, 'public/');
     }
-	
+
 	/**
      * this function will be called from the 'views' using the
      * 'Cdn' facade {{Cdn::elixir('')}} to convert the elixir generated file path into
      * it's CDN url.
      *
      * @param $path
+     * @param string $buildDir
      *
      * @return mixed
      *
      * @throws Exceptions\EmptyPathException, \InvalidArgumentException
      */
-	public function elixir($path)
+	public function elixir($path, $buildDir = 'build')
     {
         static $manifest = null;
         if (is_null($manifest)) {
-            $manifest = json_decode(file_get_contents(public_path('build/rev-manifest.json')), true);
+            $manifest = json_decode(file_get_contents(public_path("$buildDir/rev-manifest.json")), true);
         }
         if (isset($manifest[$path])) {
-            return $this->generateUrl('build/' . $manifest[$path], 'public/');
+            if (isset($buildDir) && strlen($buildDir) > 0) {
+                return $this->generateUrl($buildDir . '/' . $manifest[$path], 'public/');
+            } else {
+                return $this->generateUrl($manifest[$path], 'public/');
+            }
+        }
+        throw new \InvalidArgumentException("File {$path} not defined in asset manifest.");
+    }
+
+    /**
+     * this function will be called from the 'views' using the
+     * 'Cdn' facade {{Cdn::mix('')}} to convert the Laravel 5.4 webpack mix
+     * generated file path into it's CDN url.
+     *
+     * @param $path
+     *
+     * @param $buildDir
+     *
+     * @return mixed
+     *
+     * @throws Exceptions\EmptyPathException, \InvalidArgumentException
+     */
+    public function mix($path, $buildDir = 'build')
+    {
+        static $manifest = null;
+        if (is_null($manifest)) {
+            $manifest = json_decode(file_get_contents(public_path("$buildDir/mix-manifest.json")), true);
+        }
+        if (isset($manifest[$path])) {
+            if (isset($buildDir) && strlen($buildDir) > 0) {
+                return $this->generateUrl($buildDir . '/' . $manifest[$path], 'public/');
+            } else {
+                return $this->generateUrl($manifest[$path], 'public/');
+            }
         }
         throw new \InvalidArgumentException("File {$path} not defined in asset manifest.");
     }
@@ -133,8 +167,13 @@ class CdnFacade implements CdnFacadeInterface
     {
         // if the package is surpassed, then return the same $path
         // to load the asset from the localhost
-        if (isset($this->configurations['bypass']) && $this->configurations['bypass']) {
-            return Request::root().'/'.$path;
+      if (isset($this->configurations['bypass']) && $this->configurations['bypass']) {
+            //Request::root() doesn't return https if the request is secure
+            $url = Request::root().'/'.$path;
+            //since we use EBS, we need a workaround for https
+            $url = Request::server('HTTP_X_FORWARDED_PROTO') == 'https' ? str_replace('http://', 'https://', $url) : $url;
+
+            return $url;
         }
 
         if (!isset($path)) {
