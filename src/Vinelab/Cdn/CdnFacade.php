@@ -169,7 +169,7 @@ class CdnFacade implements CdnFacadeInterface
         // to load the asset from the localhost
       if (isset($this->configurations['bypass']) && $this->configurations['bypass']) {
             //Request::root() doesn't return https if the request is secure
-          if($path.contains('//assets/')){
+          if($path.contains('localhost:3300//assets/')){
               $url = Request::root().$path;
           }  else {
               $url = Request::root().'/'.$path;
