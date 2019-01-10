@@ -165,15 +165,22 @@ class CdnFacade implements CdnFacadeInterface
      */
     private function generateUrl($path, $prepend = '')
     {
-        // if the package is surpassed, then return the same $path
-        // to load the asset from the localhost
+
       if (isset($this->configurations['bypass']) && $this->configurations['bypass']) {
-            //Request::root() doesn't return https if the request is secure
-
             $url = Request::root().'/'.ltrim($path, '/');
+          print_r($url);
+          print_r($path);
 
+
+          if(!$url.contains('http')){
+                $url = $url.$prepend('http:');
+            }
+
+            print_r($path);
+            print_r($url);
+            print_r(Request::root());
             //since we use EBS, we need a workaround for https
-            $url = Request::server('HTTP_X_FORWARDED_PROTO') == 'https' ? str_replace('http://', 'https://', $url) : $url;
+            $url = Request::server('HTTP_X_FORWARDED_PROTO') === 'https' ? str_replace('http://', 'https://', $url) : $url.$prepend('http:');
 
             return $url;
         }
