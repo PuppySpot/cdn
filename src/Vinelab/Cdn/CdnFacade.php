@@ -129,11 +129,7 @@ class CdnFacade implements CdnFacadeInterface
             $manifest = json_decode(file_get_contents(public_path('mix-manifest.json')), true);
         }
         if (isset($manifest[$path])) {
-            if (isset($buildDir) && strlen($buildDir) > 0) {
-                return $this->generateUrl($buildDir . '/' . $manifest[$path], 'public/');
-            } else {
-                return $this->generateUrl($manifest[$path], 'public/');
-            }
+            return $this->generateMixUrl($manifest[$path], 'public/');
         }
         throw new \InvalidArgumentException("File {$path} not defined in asset manifest.");
     }
@@ -165,22 +161,40 @@ class CdnFacade implements CdnFacadeInterface
      */
     private function generateUrl($path, $prepend = '')
     {
-
+        // if the package is surpassed, then return the same $path
+        // to load the asset from the localhost
       if (isset($this->configurations['bypass']) && $this->configurations['bypass']) {
-            $url = Request::root().'/'.ltrim($path, '/');
-          print_r($url);
-          print_r($path);
+            //Request::root() doesn't return https if the request is secure
+            $url = Request::root() . '/' . $path;
 
-
-          if(!$url.contains('http')){
-                $url = $url.$prepend('http:');
-            }
-
-            print_r($path);
-            print_r($url);
-            print_r(Request::root());
             //since we use EBS, we need a workaround for https
-            $url = Request::server('HTTP_X_FORWARDED_PROTO') === 'https' ? str_replace('http://', 'https://', $url) : $url.$prepend('http:');
+            $url = Request::server('HTTP_X_FORWARDED_PROTO') == 'https' ? str_replace('http://', 'https://', $url) : $url;
+
+            return $url;
+        }
+
+        if (!isset($path)) {
+            throw new EmptyPathException('Path does not exist.');
+        }
+
+        // remove slashes from begging and ending of the path
+        // and append directories if needed
+        $clean_path = $prepend.$this->helper->cleanPath($path);
+
+        // call the provider specific url generator
+        return $this->provider->urlGenerator($clean_path);
+    }
+
+    private function generateMixUrl($path, $prepend)
+    {
+        // if the package is surpassed, then return the same $path
+        // to load the asset from the localhost
+        if (isset($this->configurations['bypass']) && $this->configurations['bypass']) {
+            //Request::root() doesn't return https if the request is secure
+            $url = 'http:' . Request::root() . $path;
+
+            //since we use EBS, we need a workaround for https
+            $url = Request::server('HTTP_X_FORWARDED_PROTO') == 'https' ? str_replace('http://', 'https://', $url) : $url;
 
             return $url;
         }
